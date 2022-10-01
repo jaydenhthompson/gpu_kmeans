@@ -1,6 +1,7 @@
 #include "seq_k_means.h"
 
 #include <cmath>
+#include <chrono>
 
 double recalculateCentroids(const matrix &data, const std::vector<int> &flags, matrix &centroids)
 {
@@ -63,14 +64,20 @@ void calculateFlags(const matrix &data, const matrix &centroids, std::vector<int
     }
 }
 
-void runSequentialKMeans(const matrix &data, matrix &centroids, std::vector<int> &flags, int maxIterations, double threshold)
+std::vector<int> runSequentialKMeans(const matrix &data, matrix &centroids, std::vector<int> &flags, int maxIterations, double threshold)
 {
     double convergence;
-    for(int i = 0; i < maxIterations; i++)
+    std::vector<int> iterTimes;
+    for (int i = 0; i < maxIterations; i++)
     {
+        auto start = std::chrono::high_resolution_clock::now();
         calculateFlags(data, centroids, flags);
         convergence = recalculateCentroids(data, flags, centroids);
+        auto end = std::chrono::high_resolution_clock::now();
+
+        iterTimes.push_back(std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
         if (convergence <= threshold)
-            return;
+            break;
     }
+    return iterTimes;
 }

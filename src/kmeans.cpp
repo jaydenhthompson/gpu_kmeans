@@ -5,6 +5,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <numeric>
 
 matrix parseFile(std::string file, int dimensions, int &numRows)
 {
@@ -34,10 +35,11 @@ int main(int argc, char **argv)
     auto centers = getRandomCentroids(input, opts.dims, opts.num_cluster, opts.seed);
     std::vector<int> flags(numRows, -1);
 
+    std::vector<int> iterations;
     switch(opts.run_option)
     {
     case 0:
-        runSequentialKMeans(input, centers, flags, opts.max_num_iter, opts.convergence_threshold);
+        iterations = runSequentialKMeans(input, centers, flags, opts.max_num_iter, opts.convergence_threshold);
         break;
     case 1:
         break;
@@ -46,6 +48,10 @@ int main(int argc, char **argv)
     case 3:
         break;
     }
+
+    std::cout << iterations.size() << ","
+              << std::reduce(iterations.begin(), iterations.end()) / static_cast<double>(iterations.size())
+              << std::endl;
 
     if(opts.output_centroids) 
     {
