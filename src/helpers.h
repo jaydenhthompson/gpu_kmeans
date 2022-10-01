@@ -5,4 +5,4 @@
 
 typedef std::vector<std::vector<double>> matrix;
 
-matrix getRandomCentroids(int num_dimensions, int num_centroids, uint seed);
+matrix getRandomCentroids(const matrix& points, int num_dimensions, int num_centroids, uint seed);

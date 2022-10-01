@@ -12,7 +12,7 @@ struct options_t {
     int max_num_iter;
     double convergence_threshold;
     bool output_centroids;
-    bool run_sequential;
+    int run_option;
     uint seed;
 };
 

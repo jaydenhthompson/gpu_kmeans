@@ -1,4 +1,4 @@
-#include <argparse.h>
+#include "argparse.h"
 
 void get_opts(int argc,
               char **argv,
@@ -19,7 +19,6 @@ void get_opts(int argc,
     }
 
     opts.output_centroids = false;
-    opts.run_sequential = false;
 
     struct option l_opts[] = {
         {"in", required_argument, NULL, 'i'},
@@ -29,12 +28,12 @@ void get_opts(int argc,
         {"threshold", required_argument, NULL, 't'},
         {"num_cluster", required_argument, NULL, 'k'},
         {"seed", required_argument, NULL, 's'},
-        {"output_centroids", no_argument, NULL, 'c'},
-        {"run_sequential", no_argument, NULL, 'r'}
+        {"run_option", required_argument, NULL, 'r'},
+        {"output_centroids", no_argument, NULL, 'c'}
     };
 
     int ind, c;
-    while ((c = getopt_long(argc, argv, "i:o:n:p:l:", l_opts, &ind)) != -1)
+    while ((c = getopt_long(argc, argv, "i:k:d:m:t:c:r:s:", l_opts, &ind)) != -1)
     {
         switch (c)
         {
@@ -59,7 +58,7 @@ void get_opts(int argc,
             opts.output_centroids = true;
             break;
         case 'r':
-            opts.run_sequential = true;
+            opts.run_option = atoi((char*)optarg);
             break;
         case 's':
             opts.seed = (uint)atoi((char*)optarg);
