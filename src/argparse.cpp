@@ -26,14 +26,13 @@ void get_opts(int argc,
         {"dims", required_argument, NULL, 'd'},
         {"max_num_iter", required_argument, NULL, 'm'},
         {"threshold", required_argument, NULL, 't'},
-        {"num_cluster", required_argument, NULL, 'k'},
         {"seed", required_argument, NULL, 's'},
         {"run_option", required_argument, NULL, 'r'},
         {"output_centroids", no_argument, NULL, 'c'}
     };
 
     int ind, c;
-    while ((c = getopt_long(argc, argv, "i:k:d:m:t:c:r:s:", l_opts, &ind)) != -1)
+    while ((c = getopt_long(argc, argv, "i:k:d:m:t:r:s:c", l_opts, &ind)) != -1)
     {
         switch (c)
         {

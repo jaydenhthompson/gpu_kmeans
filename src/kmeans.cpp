@@ -32,10 +32,12 @@ int main(int argc, char **argv)
     int numRows;
     auto input = parseFile(opts.in_file, opts.dims, numRows);
     auto centers = getRandomCentroids(input, opts.dims, opts.num_cluster, opts.seed);
+    std::vector<int> flags(numRows, -1);
 
     switch(opts.run_option)
     {
     case 0:
+        runSequentialKMeans(input, centers, flags, opts.max_num_iter, opts.convergence_threshold);
         break;
     case 1:
         break;
@@ -44,4 +46,27 @@ int main(int argc, char **argv)
     case 3:
         break;
     }
+
+    if(opts.output_centroids) 
+    {
+        for(int i = 0; i < opts.num_cluster; i++)
+        {
+            std::cout << i << " ";
+            for(auto & e : centers[i])
+            {
+                std::cout << e << " ";
+            }
+            std::cout << std::endl;
+        }
+    }
+    else
+    {
+        std::cout << "clusters:";
+        for(auto &e : flags)
+        {
+            std::cout << " " << e;
+        }
+    }
+
+    return 0;
 }
