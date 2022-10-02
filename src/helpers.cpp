@@ -27,3 +27,23 @@ matrix getRandomCentroids(const matrix& points, int num_dimensions, int num_cent
 
     return centers;
 }
+
+double calculateEuclidean(const std::vector<double> &a, const std::vector<double> &b)
+{
+    double dist = 0.0;
+    for(size_t i = 0; i < a.size(); i++)
+    {
+        dist += std::pow(a[i] - b[i], 2);
+    }
+    return std::sqrt(dist);
+}
+
+double calculateMovement(const matrix &a, const matrix &b)
+{
+    double maxMovement = 0.0;
+    for(size_t i = 0; i < a.size(); i++)
+    {
+        maxMovement = std::max(maxMovement, calculateEuclidean(a[i], b[i]));
+    }
+    return maxMovement
+}

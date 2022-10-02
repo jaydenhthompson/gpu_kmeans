@@ -1,7 +1,11 @@
 #pragma once
 
-std::vector<int> runCudaBasic(const matrix &data, matrix &centroids, std::vector<int> &flags, int maxIterations, double threshold);
+#include "helpers.h"
 
-std::vector<int> runCudaShmem(const matrix &data, matrix &centroids, std::vector<int> &flags, int maxIterations, double threshold);
+#include <vector>
 
-std::vector<int> runThrust(const matrix &data, matrix &centroids, std::vector<int> &flags, int maxIterations, double threshold);
+std::vector<float> runCudaBasic(const matrix &data, matrix &centroids, std::vector<int> &flags, int maxIterations, double threshold);
+
+std::vector<float> runCudaShmem(const matrix &data, matrix &centroids, std::vector<int> &flags, int maxIterations, double threshold);
+
+std::vector<float> runThrust(const matrix &data, matrix &centroids, std::vector<int> &flags, int maxIterations, double threshold);

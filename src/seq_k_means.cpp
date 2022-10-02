@@ -1,3 +1,4 @@
+#include "helpers.h"
 #include "seq_k_means.h"
 
 #include <cmath>
@@ -25,24 +26,10 @@ double recalculateCentroids(const matrix &data, const std::vector<int> &flags, m
         }
     }
 
-    double maxMovement = 0.0;
-    for(size_t i = 0; i < centroids.size(); i++)
-    {
-        maxMovement = std::max(maxMovement, calculateEuclidean(centroids[i], newCentroids[i]));
-    }
+    auto movement = calculateMovement(centroids, newCentroids);
 
     centroids = newCentroids;
-    return maxMovement;
-}
-
-double calculateEuclidean(const std::vector<double> &a, const std::vector<double> &b)
-{
-    double dist = 0.0;
-    for(size_t i = 0; i < a.size(); i++)
-    {
-        dist += std::pow(a[i] - b[i], 2);
-    }
-    return std::sqrt(dist);
+    return movement;
 }
 
 void calculateFlags(const matrix &data, const matrix &centroids, std::vector<int> &flags)
@@ -64,7 +51,7 @@ void calculateFlags(const matrix &data, const matrix &centroids, std::vector<int
     }
 }
 
-std::vector<int> runSequentialKMeans(const matrix &data, matrix &centroids, std::vector<int> &flags, int maxIterations, double threshold)
+std::vector<float> runSequentialKMeans(const matrix &data, matrix &centroids, std::vector<int> &flags, int maxIterations, double threshold)
 {
     double convergence;
     std::vector<int> iterTimes;
@@ -75,7 +62,8 @@ std::vector<int> runSequentialKMeans(const matrix &data, matrix &centroids, std:
         convergence = recalculateCentroids(data, flags, centroids);
         auto end = std::chrono::high_resolution_clock::now();
 
-        iterTimes.push_back(std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
+        int microseconds = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count()
+        iterTimes.push_back(static_cast<double>(microseconds)*1000.0);
         if (convergence <= threshold)
             break;
     }

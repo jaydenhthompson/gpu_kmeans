@@ -35,13 +35,14 @@ int main(int argc, char **argv)
     auto centers = getRandomCentroids(input, opts.dims, opts.num_cluster, opts.seed);
     std::vector<int> flags(numRows, -1);
 
-    std::vector<int> iterations;
+    std::vector<float> iterations;
     switch(opts.run_option)
     {
     case 0:
         iterations = runSequentialKMeans(input, centers, flags, opts.max_num_iter, opts.convergence_threshold);
         break;
     case 1:
+        iterations = runCudaBasic(input, centers, flags, opts.max_num_iter, opts.convergence_threshold);
         break;
     case 2:
         break;
