@@ -2,6 +2,7 @@
 
 #include <cstdlib>
 #include <cmath>
+#include <iostream>
 
 static unsigned long int next = 1;
 static unsigned long kmeans_rmax = 32767;
@@ -45,6 +46,18 @@ double calculateMovement(const matrix &a, const matrix &b)
     for(size_t i = 0; i < a.size(); i++)
     {
         maxMovement = std::max(maxMovement, calculateEuclidean(a[i], b[i]));
+    }
+    return maxMovement;
+}
+
+double calculateVectorMovement(const std::vector<double> &a, const std::vector<double> &b, int numClusters, int dimensions)
+{
+    double maxMovement = 0.0;
+    for(int i = 0; i < numClusters; i++)
+    {
+        maxMovement = std::max(maxMovement,
+                               calculateEuclidean(std::vector<double>(&a[i * dimensions], &a[i * dimensions + dimensions]),
+                                                  std::vector<double>(&b[i * dimensions], &b[i * dimensions + dimensions])));
     }
     return maxMovement;
 }

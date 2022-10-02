@@ -25,6 +25,40 @@ matrix parseFile(std::string file, int dimensions, int &numRows)
     return input;
 }
 
+double avgVector(const std::vector<float>&v)
+{
+    double avg = 0;
+    for(auto & e : v)
+    {
+        avg += e;
+    }
+    return avg / static_cast<double>(v.size());
+}
+
+std::vector<double> convertMatrix(const matrix &m)
+{
+    std::vector<double> v;
+    for (auto &e : m)
+    {
+        for (auto &f : e)
+        {
+            v.push_back(f);
+        }
+    }
+    return v;
+}
+
+void convertVector(const std::vector<double> v, matrix& m)
+{
+    for(int i = 0; i < m.size(); i++)
+    {
+        for(int j = 0; j < m[0].size(); j++)
+        {
+            m[i][j] = v[i*m[0].size() + j];
+        }
+    }
+}
+
 int main(int argc, char **argv)
 {
     options_t opts;
@@ -35,6 +69,9 @@ int main(int argc, char **argv)
     auto centers = getRandomCentroids(input, opts.dims, opts.num_cluster, opts.seed);
     std::vector<int> flags(numRows, -1);
 
+    auto dataVector = convertMatrix(input);
+    auto centerVector = convertMatrix(centers);
+
     std::vector<float> iterations;
     switch(opts.run_option)
     {
@@ -42,7 +79,8 @@ int main(int argc, char **argv)
         iterations = runSequentialKMeans(input, centers, flags, opts.max_num_iter, opts.convergence_threshold);
         break;
     case 1:
-        iterations = runCudaBasic(input, centers, flags, opts.max_num_iter, opts.convergence_threshold);
+        iterations = runCudaBasic(dataVector, centerVector, flags, opts.dims, numRows, opts.num_cluster, opts.max_num_iter, opts.convergence_threshold);
+        convertVector(centerVector, centers);
         break;
     case 2:
         break;
@@ -51,7 +89,7 @@ int main(int argc, char **argv)
     }
 
     std::cout << iterations.size() << ","
-              << std::reduce(iterations.begin(), iterations.end()) / static_cast<double>(iterations.size())
+              << avgVector(iterations)
               << std::endl;
 
     if(opts.output_centroids) 

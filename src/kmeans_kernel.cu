@@ -4,7 +4,6 @@
 // CUDA Includes
 #include <cuda_runtime.h>
 
-#include <iostream>
 #include <vector>
 
 __device__ double euclideanDistance(double *a, double *b, int dim)
@@ -17,31 +16,32 @@ __device__ double euclideanDistance(double *a, double *b, int dim)
     return sqrt(dist);
 }
 
-__global__ void cudaCalculateFlags(double *d_data, double *d_centroids, int *d_flags, int d_dataSize, int d_numCentroids, int d_dimensions)
+__global__ void cudaCalculateFlags(double *d_data, double *d_centroids, int *d_flags, int *d_numAssigned, int d_dataSize, int d_numCentroids, int d_dimensions)
 {
     const int index = blockIdx.x * blockDim.x + threadIdx.x;
     
     if(index >= d_dataSize) return;
-    if(index == 0) printf("data 0 %lf", d_data[0]);
 
     int assigned = 0;
     double minDist = INFINITY;
     for (int i = 0; i < d_numCentroids; i++)
     {
-        double dist = euclideanDistance(&d_data[index], &d_centroids[i], d_dimensions);
+        double dist = euclideanDistance(&d_data[index*d_dimensions], &d_centroids[i*d_dimensions], d_dimensions);
         if(dist < minDist)
         {
             minDist = dist;
             assigned = i;
         }
     }
+    atomicAdd(&d_numAssigned[assigned], 1);
     d_flags[index] = assigned;
+
+    __syncthreads();
 }
 
 __global__ void cudaCalculateNewCentroids(double *d_data, double *d_centroids, int *d_flags, int *d_numAssigned, int d_dataSize, int d_numCentroids, int d_dimensions)
 {
     const int index = blockIdx.x * blockDim.x + threadIdx.x;
-    printf("index: %d\n", index);
 
     if(index >= d_dataSize) return;
 
@@ -50,38 +50,34 @@ __global__ void cudaCalculateNewCentroids(double *d_data, double *d_centroids, i
     for(int i = 0; i < d_dimensions; i++)
     {
         atomicAdd(&d_centroids[assignedCentroid*d_dimensions + i], d_data[index*d_dimensions + i]);
-        atomicAdd(&d_numAssigned[assignedCentroid], 1);
     }
 
     __syncthreads();
 
     if(index < d_numCentroids)
     {
-        d_centroids[index] /= d_numAssigned[index];
+        for(int i = 0; i < d_dimensions; i++)
+        {
+            d_centroids[index*d_dimensions + i] /= d_numAssigned[index];
+        }
     }
-    
-    __syncthreads();
 }
 
 
-std::vector<float> runCudaBasic(const matrix &data, matrix &centroids, std::vector<int> &flags, int maxIterations, double threshold)
+std::vector<float> runCudaBasic(const std::vector<double> &data, std::vector<double> &centroids, std::vector<int> &flags, int dimensions, int numData, int numClusters, int maxIterations, double threshold)
 {
-    matrix newCentroids(centroids.size(), std::vector<double>(centroids[0].size()));
+    std::vector<double> newCentroids(centroids.size(), 0);
     std::vector<float> times;
 
     double *d_data = nullptr;
-    int dataSize = data.size() * data[0].size() * sizeof(double);
-    auto err = cudaMalloc((void**)&d_data, dataSize);
-    if(err != cudaSuccess)
-    {
-        std::cerr << cudaGetErrorString(err) << std::endl;
-    }
-    cudaMemcpy(d_data, data.data(), dataSize, cudaMemcpyHostToDevice);
+    int dataSize = data.size() * sizeof(double);
+    cudaMalloc((void**)&d_data, dataSize);
+    cudaMemcpy(d_data, &data[0], dataSize, cudaMemcpyHostToDevice);
 
     double *d_centroids = nullptr;
-    int centroidSize = centroids.size() * centroids[0].size() * sizeof(double);
+    int centroidSize = centroids.size() * sizeof(double);
     cudaMalloc((void**)&d_centroids, centroidSize);
-    cudaMemcpy(d_centroids, centroids.data(), centroidSize, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_centroids, &centroids[0], centroidSize, cudaMemcpyHostToDevice);
 
     double *d_newCentroids = nullptr;
     cudaMalloc((void**)&d_newCentroids, centroidSize);
@@ -92,11 +88,10 @@ std::vector<float> runCudaBasic(const matrix &data, matrix &centroids, std::vect
     cudaMalloc((void**)&d_flags, flagsSize);
 
     int *d_numAssigned = nullptr;
-    cudaMalloc((void**)&d_numAssigned, centroids.size() * sizeof(int));
-    cudaMemset(d_numAssigned, 0, centroids.size() * sizeof(int));
+    cudaMalloc((void**)&d_numAssigned, numClusters * sizeof(int));
 
     int threadsPerBlock = 256;
-    int blocksPerGrid = (data.size() + threadsPerBlock - 1) / threadsPerBlock;
+    int blocksPerGrid = (numData + threadsPerBlock - 1) / threadsPerBlock;
     for (int i = 0; i < maxIterations; i++)
     {
         cudaEvent_t start, stop;
@@ -105,31 +100,25 @@ std::vector<float> runCudaBasic(const matrix &data, matrix &centroids, std::vect
 
         cudaEventRecord(start);
 
-        cudaCalculateFlags<<<blocksPerGrid, threadsPerBlock>>>(d_data, d_centroids, d_flags, data.size(), centroids.size(), data[0].size());
-        cudaDeviceSynchronize();
-        cudaCalculateNewCentroids<<<blocksPerGrid, threadsPerBlock>>>(d_data, d_newCentroids, d_flags, d_numAssigned, data.size(), centroids.size(), data[0].size());
-        cudaDeviceSynchronize();
+        cudaMemset(d_numAssigned, 0, numClusters * sizeof(int));
+        cudaCalculateFlags<<<blocksPerGrid, threadsPerBlock>>>(d_data, d_centroids, d_flags, d_numAssigned, numData, numClusters, dimensions);
+        cudaCalculateNewCentroids<<<blocksPerGrid, threadsPerBlock>>>(d_data, d_newCentroids, d_flags, d_numAssigned, numData, numClusters, dimensions);
 
-        cudaMemcpy(newCentroids.data(), d_newCentroids, centroidSize, cudaMemcpyDeviceToHost);
-        std::cout << "printing new centroids\n";
-        for (auto & e : newCentroids){
-            for (auto & f : e) {
-                std::cout << f << " ";
-            }
-            std::cout << std::endl;
-        }
-        auto movement = calculateMovement(centroids, newCentroids);
+        cudaEventRecord(stop);
+        cudaEventSynchronize(stop);
+
+        cudaMemcpy(&newCentroids[0], d_newCentroids, centroidSize, cudaMemcpyDeviceToHost);
+
+        auto movement = calculateVectorMovement(centroids, newCentroids, numClusters, dimensions);
         if(movement <= threshold)
         {
             break;
         }
 
-        cudaEventRecord(stop);
-        cudaEventSynchronize(stop);
-
         float time = 0;
         cudaEventElapsedTime(&time, start, stop);
         times.push_back(time);
+
         
         centroids = newCentroids;
         cudaMemset(d_newCentroids, 0, centroidSize);
@@ -144,13 +133,13 @@ std::vector<float> runCudaBasic(const matrix &data, matrix &centroids, std::vect
     return times;
 }
 
-std::vector<float> runCudaShmem(const matrix &data, matrix &centroids, std::vector<int> &flags, int maxIterations, double threshold)
+std::vector<float> runCudaShmem(const std::vector<double> &data, std::vector<double> &centroids, std::vector<int> &flags, int maxIterations, double threshold)
 {
     std::vector<float>times;
     return times;
 }
 
-std::vector<float> runThrust(const matrix &data, matrix &centroids, std::vector<int> &flags, int maxIterations, double threshold)
+std::vector<float> runThrust(const std::vector<double> &data, std::vector<double> &centroids, std::vector<int> &flags, int maxIterations, double threshold)
 {
     std::vector<float>times;
     return times;

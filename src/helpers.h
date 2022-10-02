@@ -11,3 +11,5 @@ double calculateEuclidean(const std::vector<double> &a, const std::vector<double
 
 double calculateMovement(const matrix &a, const matrix &b);
 
+double calculateVectorMovement(const std::vector<double> &a, const std::vector<double> &b, int numClusters, int dimensions);
+
