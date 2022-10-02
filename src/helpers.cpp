@@ -1,6 +1,7 @@
 #include "helpers.h"
 
 #include <cstdlib>
+#include <cmath>
 
 static unsigned long int next = 1;
 static unsigned long kmeans_rmax = 32767;
@@ -45,5 +46,5 @@ double calculateMovement(const matrix &a, const matrix &b)
     {
         maxMovement = std::max(maxMovement, calculateEuclidean(a[i], b[i]));
     }
-    return maxMovement
+    return maxMovement;
 }
