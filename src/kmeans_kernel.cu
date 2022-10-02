@@ -4,6 +4,7 @@
 // CUDA Includes
 #include <cuda_runtime.h>
 
+#include <iostream>
 #include <vector>
 
 __device__ double euclideanDistance(double *a, double *b, int dim)
@@ -37,6 +38,8 @@ __global__ void cudaCalculateFlags(double *d_data, double *d_centroids, int *d_f
     d_flags[index] = assigned;
 
     __syncthreads();
+
+    if(index == 0)
 }
 
 __global__ void cudaCalculateNewCentroids(double *d_data, double *d_centroids, int *d_flags, int *d_numAssigned, int d_dataSize, int d_numCentroids, int d_dimensions)
@@ -81,7 +84,7 @@ std::vector<float> runCudaBasic(const std::vector<double> &data, std::vector<dou
 
     double *d_newCentroids = nullptr;
     cudaMalloc((void**)&d_newCentroids, centroidSize);
-    cudaMemset(d_newCentroids, 0, centroidSize);
+    cudaMemcpy(d_newCentroids, &centroids[0], centroidSize, cudaMemcpyHostToDevice);
 
     int *d_flags = nullptr;
     int flagsSize = flags.size() * sizeof(int);
@@ -101,7 +104,8 @@ std::vector<float> runCudaBasic(const std::vector<double> &data, std::vector<dou
         cudaEventRecord(start);
 
         cudaMemset(d_numAssigned, 0, numClusters * sizeof(int));
-        cudaCalculateFlags<<<blocksPerGrid, threadsPerBlock>>>(d_data, d_centroids, d_flags, d_numAssigned, numData, numClusters, dimensions);
+        cudaCalculateFlags<<<blocksPerGrid, threadsPerBlock>>>(d_data, d_newCentroids, d_flags, d_numAssigned, numData, numClusters, dimensions);
+        cudaMemset(d_newCentroids, 0, centroidSize);
         cudaCalculateNewCentroids<<<blocksPerGrid, threadsPerBlock>>>(d_data, d_newCentroids, d_flags, d_numAssigned, numData, numClusters, dimensions);
 
         cudaEventRecord(stop);
@@ -121,7 +125,6 @@ std::vector<float> runCudaBasic(const std::vector<double> &data, std::vector<dou
 
         
         centroids = newCentroids;
-        cudaMemset(d_newCentroids, 0, centroidSize);
     }
 
     cudaMemcpy(flags.data(), d_flags, flagsSize, cudaMemcpyDeviceToHost);
