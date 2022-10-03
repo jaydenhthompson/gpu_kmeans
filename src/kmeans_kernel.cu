@@ -36,10 +36,6 @@ __global__ void cudaCalculateFlags(double *d_data, double *d_centroids, int *d_f
     }
     atomicAdd(&d_numAssigned[assigned], 1);
     d_flags[index] = assigned;
-
-    __syncthreads();
-
-    if(index == 0)
 }
 
 __global__ void cudaCalculateNewCentroids(double *d_data, double *d_centroids, int *d_flags, int *d_numAssigned, int d_dataSize, int d_numCentroids, int d_dimensions)
@@ -54,8 +50,13 @@ __global__ void cudaCalculateNewCentroids(double *d_data, double *d_centroids, i
     {
         atomicAdd(&d_centroids[assignedCentroid*d_dimensions + i], d_data[index*d_dimensions + i]);
     }
+}
 
-    __syncthreads();
+__global__ void averageNewCentroids(double *d_data, double *d_centroids, int *d_flags, int *d_numAssigned, int d_dataSize, int d_numCentroids, int d_dimensions)
+{
+    const int index = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if(index >= d_dataSize) return;
 
     if(index < d_numCentroids)
     {
@@ -65,7 +66,6 @@ __global__ void cudaCalculateNewCentroids(double *d_data, double *d_centroids, i
         }
     }
 }
-
 
 std::vector<float> runCudaBasic(const std::vector<double> &data, std::vector<double> &centroids, std::vector<int> &flags, int dimensions, int numData, int numClusters, int maxIterations, double threshold)
 {
@@ -106,7 +106,11 @@ std::vector<float> runCudaBasic(const std::vector<double> &data, std::vector<dou
         cudaMemset(d_numAssigned, 0, numClusters * sizeof(int));
         cudaCalculateFlags<<<blocksPerGrid, threadsPerBlock>>>(d_data, d_newCentroids, d_flags, d_numAssigned, numData, numClusters, dimensions);
         cudaMemset(d_newCentroids, 0, centroidSize);
+        cudaDeviceSynchronize();
         cudaCalculateNewCentroids<<<blocksPerGrid, threadsPerBlock>>>(d_data, d_newCentroids, d_flags, d_numAssigned, numData, numClusters, dimensions);
+        cudaDeviceSynchronize();
+        averageNewCentroids<<<blocksPerGrid, threadsPerBlock>>>(d_data, d_newCentroids, d_flags, d_numAssigned, numData, numClusters, dimensions);
+        cudaDeviceSynchronize();
 
         cudaEventRecord(stop);
         cudaEventSynchronize(stop);
