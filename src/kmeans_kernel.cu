@@ -38,7 +38,7 @@ __global__ void cudaCalculateFlags(double *d_data, double *d_centroids, int *d_f
     d_flags[index] = assigned;
 }
 
-__global__ void cudaCalculateNewCentroids(double *d_data, double *d_centroids, int *d_flags, int *d_numAssigned, int d_dataSize, int d_numCentroids, int d_dimensions)
+__global__ void cudaAddNewCentroids(double *d_data, double *d_centroids, int *d_flags, int *d_numAssigned, int d_dataSize, int d_numCentroids, int d_dimensions)
 {
     const int index = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -52,7 +52,7 @@ __global__ void cudaCalculateNewCentroids(double *d_data, double *d_centroids, i
     }
 }
 
-__global__ void averageNewCentroids(double *d_data, double *d_centroids, int *d_flags, int *d_numAssigned, int d_dataSize, int d_numCentroids, int d_dimensions)
+__global__ void cudaAverageNewCentroids(double *d_data, double *d_centroids, int *d_flags, int *d_numAssigned, int d_dataSize, int d_numCentroids, int d_dimensions)
 {
     const int index = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -69,8 +69,16 @@ __global__ void averageNewCentroids(double *d_data, double *d_centroids, int *d_
 
 std::vector<float> runCudaBasic(const std::vector<double> &data, std::vector<double> &centroids, std::vector<int> &flags, int dimensions, int numData, int numClusters, int maxIterations, double threshold)
 {
+    ////////////////////
+    // Host variables //
+    ////////////////////
+
     std::vector<double> newCentroids(centroids.size(), 0);
     std::vector<float> times;
+
+    ////////////////////
+    // CUDA variables //
+    ////////////////////
 
     double *d_data = nullptr;
     int dataSize = data.size() * sizeof(double);
@@ -93,6 +101,10 @@ std::vector<float> runCudaBasic(const std::vector<double> &data, std::vector<dou
     int *d_numAssigned = nullptr;
     cudaMalloc((void**)&d_numAssigned, numClusters * sizeof(int));
 
+    ////////////////////
+    // Execution Loop //
+    ////////////////////
+
     int threadsPerBlock = 256;
     int blocksPerGrid = (numData + threadsPerBlock - 1) / threadsPerBlock;
     for (int i = 0; i < maxIterations; i++)
@@ -100,43 +112,57 @@ std::vector<float> runCudaBasic(const std::vector<double> &data, std::vector<dou
         cudaEvent_t start, stop;
         cudaEventCreate(&start);
         cudaEventCreate(&stop);
-
         cudaEventRecord(start);
+
+        /////////////////
+        // Run Kernels //
+        /////////////////
 
         cudaMemset(d_numAssigned, 0, numClusters * sizeof(int));
         cudaCalculateFlags<<<blocksPerGrid, threadsPerBlock>>>(d_data, d_newCentroids, d_flags, d_numAssigned, numData, numClusters, dimensions);
         cudaMemset(d_newCentroids, 0, centroidSize);
         cudaDeviceSynchronize();
-        cudaCalculateNewCentroids<<<blocksPerGrid, threadsPerBlock>>>(d_data, d_newCentroids, d_flags, d_numAssigned, numData, numClusters, dimensions);
+        cudaAddNewCentroids<<<blocksPerGrid, threadsPerBlock>>>(d_data, d_newCentroids, d_flags, d_numAssigned, numData, numClusters, dimensions);
         cudaDeviceSynchronize();
-        averageNewCentroids<<<blocksPerGrid, threadsPerBlock>>>(d_data, d_newCentroids, d_flags, d_numAssigned, numData, numClusters, dimensions);
+        cudaAverageNewCentroids<<<blocksPerGrid, threadsPerBlock>>>(d_data, d_newCentroids, d_flags, d_numAssigned, numData, numClusters, dimensions);
         cudaDeviceSynchronize();
 
-        cudaEventRecord(stop);
-        cudaEventSynchronize(stop);
+        /////////////////////////
+        // Calculate Threshold //
+        /////////////////////////
 
         cudaMemcpy(&newCentroids[0], d_newCentroids, centroidSize, cudaMemcpyDeviceToHost);
-
         auto movement = calculateVectorMovement(centroids, newCentroids, numClusters, dimensions);
         if(movement <= threshold)
         {
             break;
         }
 
+        /////////////////
+        // Record Time //
+        /////////////////
+
+        cudaEventRecord(stop);
+        cudaEventSynchronize(stop);
+
         float time = 0;
         cudaEventElapsedTime(&time, start, stop);
         times.push_back(time);
 
         
+        // record new centroids
         centroids = newCentroids;
     }
 
+    // record flags
     cudaMemcpy(flags.data(), d_flags, flagsSize, cudaMemcpyDeviceToHost);
 
+    // memory management
     cudaFree(d_data);
     cudaFree(d_centroids);
     cudaFree(d_newCentroids);
     cudaFree(d_flags);
+
     return times;
 }
 
