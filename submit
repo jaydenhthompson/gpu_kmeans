@@ -63,8 +63,13 @@
 #
 [Sequential]
 How_To_Compile:
+    nvcc -arch=sm_61 -o kmeans_kernel.o -c ./src/kmeans_kernel.cu
+    nvcc -o helpers.o -c ./src/helpers.cpp
+    nvcc -o kmeans.o -c ./src/kmeans.cpp
+    nvcc -arch=sm_61 -o kmeans helpers.o kmeans.o kmeans_kernel.o
 Executable:
-Extra_Args:
+    kmeans
+Extra_Args: -r 0
 
 #
 # Specification for GPU implementation of kmeans
@@ -72,8 +77,13 @@ Extra_Args:
 #
 [Thrust]
 How_To_Compile:
+    nvcc -arch=sm_61 -o kmeans_kernel.o -c ./src/kmeans_kernel.cu
+    nvcc -o helpers.o -c ./src/helpers.cpp
+    nvcc -o kmeans.o -c ./src/kmeans.cpp
+    nvcc -arch=sm_61 -o kmeans helpers.o kmeans.o kmeans_kernel.o
 Executable:
-Extra_Args:
+    kmeans
+Extra_Args: -r 3
 
 #
 # Specification for GPU implementation of kmeans
@@ -81,8 +91,13 @@ Extra_Args:
 #
 [CUDA basic]
 How_To_Compile:
+    nvcc -arch=sm_61 -o kmeans_kernel.o -c ./src/kmeans_kernel.cu
+    nvcc -o helpers.o -c ./src/helpers.cpp
+    nvcc -o kmeans.o -c ./src/kmeans.cpp
+    nvcc -arch=sm_61 -o kmeans helpers.o kmeans.o kmeans_kernel.o
 Executable:
-Extra_Args:
+    kmeans
+Extra_Args: -r 1
 
 #
 # Specification for GPU implementation of kmeans
@@ -90,8 +105,13 @@ Extra_Args:
 #
 [CUDA shared]
 How_To_Compile:
+    nvcc -arch=sm_61 -o kmeans_kernel.o -c ./src/kmeans_kernel.cu
+    nvcc -o helpers.o -c ./src/helpers.cpp
+    nvcc -o kmeans.o -c ./src/kmeans.cpp
+    nvcc -arch=sm_61 -o kmeans helpers.o kmeans.o kmeans_kernel.o
 Executable:
-Extra_Args:
+    kmeans
+Extra_Args: -r 2
 
 #
 # Specification for GPU implementation of kmeans

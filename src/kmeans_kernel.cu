@@ -262,9 +262,14 @@ std::vector<float> runThrust(const std::vector<double> &data, std::vector<double
     thrust::device_vector<double> d_data(data);
     thrust::device_vector<double> d_centroids(centroids);
     thrust::device_vector<double> d_newCentroids(centroids);
-    thrust::device_vector<double> d_flags(flags);
+    thrust::device_vector<int> d_flags(flags);
+    thrust::device_vector<int> d_numAssigned(centroids.size());
 
-    thrust::device_vector<int> originalOrder(d_newCentroids.size());
+    thrust::device_vector<int> originalCentroidOrder(centroids.size() * dimensions);
+    thrust::sequence(originalCentroidOrder.begin(), originalCentroidOrder.end());
+
+    thrust::device_vector<int> originalDataOrder(data.size() * dimensions);
+    thrust::sequence(originalDataOrder.begin(), originalDataOrder.end());
 
 
     ////////////////////
@@ -284,14 +289,14 @@ std::vector<float> runThrust(const std::vector<double> &data, std::vector<double
         // Run Kernels //
         /////////////////
 
-        thrust::fill(d_flags.begin(), d_flags.end(), 0);
-        cudaCalculateFlags<<<blocksPerGrid, threadsPerBlock>>>(d_data.data(), d_newCentroids.data(), d_flags.data(), d_numAssigned, numData, numClusters, dimensions);
+        thrust::fill(d_numAssigned.begin(), d_numAssigned.end(), 0);
+        cudaCalculateFlags<<<blocksPerGrid, threadsPerBlock>>>(thrust::raw_pointer_cast(d_data.data()), thrust::raw_pointer_cast(d_newCentroids.data()), thrust::raw_pointer_cast(d_flags.data()), thrust::raw_pointer_cast(d_numAssigned.data()), numData, numClusters, dimensions);
         cudaDeviceSynchronize();
         thrust::fill(d_newCentroids.begin(), d_newCentroids.end(), 0);
-        //cudaAddNewCentroids<<<blocksPerGrid, threadsPerBlock>>>(d_data, d_newCentroids, d_flags, d_numAssigned, numData, numClusters, dimensions);
-        //cudaDeviceSynchronize();
-        //cudaAverageNewCentroids<<<blocksPerGrid, threadsPerBlock>>>(d_data, d_newCentroids, d_flags, d_numAssigned, numData, numClusters, dimensions);
-        //cudaDeviceSynchronize();
+        cudaAddNewCentroids<<<blocksPerGrid, threadsPerBlock>>>(thrust::raw_pointer_cast(d_data.data()), thrust::raw_pointer_cast(d_newCentroids.data()), thrust::raw_pointer_cast(d_flags.data()), thrust::raw_pointer_cast(d_numAssigned.data()), numData, numClusters, dimensions);
+        cudaDeviceSynchronize();
+        cudaAverageNewCentroids<<<blocksPerGrid, threadsPerBlock>>>(thrust::raw_pointer_cast(d_data.data()), thrust::raw_pointer_cast(d_newCentroids.data()), thrust::raw_pointer_cast(d_flags.data()), thrust::raw_pointer_cast(d_numAssigned.data()), numData, numClusters, dimensions);
+        cudaDeviceSynchronize();
 
         /////////////////////////
         // Calculate Threshold //
