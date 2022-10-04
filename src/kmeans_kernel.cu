@@ -4,6 +4,9 @@
 // CUDA Includes
 #include <cuda_runtime.h>
 
+// thrust includes
+#include <thrust/device_vector.h>
+
 #include <iostream>
 #include <vector>
 
@@ -192,8 +195,8 @@ std::vector<float> runCuda(const std::vector<double> &data, std::vector<double> 
         {
         case 1:
             cudaCalculateFlags<<<blocksPerGrid, threadsPerBlock>>>(d_data, d_newCentroids, d_flags, d_numAssigned, numData, numClusters, dimensions);
-            cudaMemset(d_newCentroids, 0, centroidSize);
             cudaDeviceSynchronize();
+            cudaMemset(d_newCentroids, 0, centroidSize);
             cudaAddNewCentroids<<<blocksPerGrid, threadsPerBlock>>>(d_data, d_newCentroids, d_flags, d_numAssigned, numData, numClusters, dimensions);
             cudaDeviceSynchronize();
             cudaAverageNewCentroids<<<blocksPerGrid, threadsPerBlock>>>(d_data, d_newCentroids, d_flags, d_numAssigned, numData, numClusters, dimensions);
@@ -201,14 +204,16 @@ std::vector<float> runCuda(const std::vector<double> &data, std::vector<double> 
             break;
         case 2:
             shmemCalculateFlags<<<blocksPerGrid, threadsPerBlock, numClusters*sizeof(int)>>>(d_data, d_newCentroids, d_flags, d_numAssigned, numData, numClusters, dimensions);
-            cudaMemset(d_newCentroids, 0, centroidSize);
             cudaDeviceSynchronize();
+            cudaMemset(d_newCentroids, 0, centroidSize);
             shmemAddNewCentroids<<<blocksPerGrid, threadsPerBlock>>>(d_data, d_newCentroids, d_flags, d_numAssigned, numData, numClusters, dimensions);
             cudaDeviceSynchronize();
             shmemAverageNewCentroids<<<blocksPerGrid, threadsPerBlock>>>(d_data, d_newCentroids, d_flags, d_numAssigned, numData, numClusters, dimensions);
             cudaDeviceSynchronize();
             break;
-        case 3:
+        default:
+            std::cout << "Wrong option for -r" << std::endl;
+            return times;
             break;
         }
 
@@ -218,11 +223,6 @@ std::vector<float> runCuda(const std::vector<double> &data, std::vector<double> 
 
         cudaMemcpy(&newCentroids[0], d_newCentroids, centroidSize, cudaMemcpyDeviceToHost);
         auto movement = calculateVectorMovement(centroids, newCentroids, numClusters, dimensions);
-        if(movement <= threshold)
-        {
-            break;
-        }
-
         /////////////////
         // Record Time //
         /////////////////
@@ -234,9 +234,12 @@ std::vector<float> runCuda(const std::vector<double> &data, std::vector<double> 
         cudaEventElapsedTime(&time, start, stop);
         times.push_back(time);
 
-        
         // record new centroids
         centroids = newCentroids;
+        if(movement <= threshold)
+        {
+            break;
+        }
     }
 
     // record flags
@@ -247,6 +250,73 @@ std::vector<float> runCuda(const std::vector<double> &data, std::vector<double> 
     cudaFree(d_centroids);
     cudaFree(d_newCentroids);
     cudaFree(d_flags);
+
+    return times;
+}
+
+std::vector<float> runThrust(const std::vector<double> &data, std::vector<double> &centroids, std::vector<int> &flags, int option, int dimensions, int numData, int numClusters, int maxIterations, double threshold)
+{
+    std::vector<double> newCentroids(centroids.size(), 0);
+    std::vector<float> times;
+
+    thrust::device_vector<double> d_data(data);
+    thrust::device_vector<double> d_centroids(centroids);
+    thrust::device_vector<double> d_newCentroids(centroids);
+    thrust::device_vector<double> d_flags(flags);
+
+    thrust::device_vector<int> originalOrder(d_newCentroids.size());
+
+
+    ////////////////////
+    // Execution Loop //
+    ////////////////////
+
+    int threadsPerBlock = 256;
+    int blocksPerGrid = (numData + threadsPerBlock - 1) / threadsPerBlock;
+    for (int i = 0; i < maxIterations; i++)
+    {
+        cudaEvent_t start, stop;
+        cudaEventCreate(&start);
+        cudaEventCreate(&stop);
+        cudaEventRecord(start);
+
+        /////////////////
+        // Run Kernels //
+        /////////////////
+
+        thrust::fill(d_flags.begin(), d_flags.end(), 0);
+        cudaCalculateFlags<<<blocksPerGrid, threadsPerBlock>>>(d_data.data(), d_newCentroids.data(), d_flags.data(), d_numAssigned, numData, numClusters, dimensions);
+        cudaDeviceSynchronize();
+        thrust::fill(d_newCentroids.begin(), d_newCentroids.end(), 0);
+        //cudaAddNewCentroids<<<blocksPerGrid, threadsPerBlock>>>(d_data, d_newCentroids, d_flags, d_numAssigned, numData, numClusters, dimensions);
+        //cudaDeviceSynchronize();
+        //cudaAverageNewCentroids<<<blocksPerGrid, threadsPerBlock>>>(d_data, d_newCentroids, d_flags, d_numAssigned, numData, numClusters, dimensions);
+        //cudaDeviceSynchronize();
+
+        /////////////////////////
+        // Calculate Threshold //
+        /////////////////////////
+
+        thrust::copy(d_newCentroids.begin(), d_newCentroids.end(), newCentroids.begin());
+        auto movement = calculateVectorMovement(centroids, newCentroids, numClusters, dimensions);
+        /////////////////
+        // Record Time //
+        /////////////////
+
+        cudaEventRecord(stop);
+        cudaEventSynchronize(stop);
+
+        float time = 0;
+        cudaEventElapsedTime(&time, start, stop);
+        times.push_back(time);
+
+        // record new centroids
+        centroids = newCentroids;
+        if(movement <= threshold)
+        {
+            break;
+        }
+    }
 
     return times;
 }

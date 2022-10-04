@@ -77,6 +77,11 @@ int main(int argc, char **argv)
     {
         iterations = runSequentialKMeans(input, centers, flags, opts.max_num_iter, opts.convergence_threshold);
     }
+    else if(opts.run_option == 3)
+    {
+        iterations = runThrust(dataVector, centerVector, flags, opts.run_option, opts.dims, numRows, opts.num_cluster, opts.max_num_iter, opts.convergence_threshold);
+        convertVector(centerVector, centers);
+    }
     else
     {
         iterations = runCuda(dataVector, centerVector, flags, opts.run_option, opts.dims, numRows, opts.num_cluster, opts.max_num_iter, opts.convergence_threshold);
