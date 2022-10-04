@@ -71,20 +71,17 @@ __global__ void shmemCalculateFlags(double *d_data, double *d_centroids, int *d_
 {
     const int index = blockIdx.x * blockDim.x + threadIdx.x;
     const int sharedIndex = threadIdx.x;
-    
-    if(index >= d_dataSize) return;
+
+    if (index >= d_dataSize)
+        return;
 
     extern __shared__ int s_numAssigned[];
-    if(sharedIndex == 0 && d_numCentroids > 256)
+    if (sharedIndex == 0)
     {
-       for(int i = 0; i < d_numCentroids; i++)
-       {
-        s_numAssigned[i] = 0;
-       } 
-    }
-    else if (sharedIndex < d_numCentroids)
-    {
-      s_numAssigned[sharedIndex] = 0;
+        for (int i = 0; i < d_numCentroids; i++)
+        {
+            s_numAssigned[i] = 0;
+        }
     }
     __syncthreads();
 
@@ -92,8 +89,8 @@ __global__ void shmemCalculateFlags(double *d_data, double *d_centroids, int *d_
     double minDist = INFINITY;
     for (int i = 0; i < d_numCentroids; i++)
     {
-        double dist = euclideanDistance(&d_data[index*d_dimensions], &d_centroids[i*d_dimensions], d_dimensions);
-        if(dist < minDist)
+        double dist = euclideanDistance(&d_data[index * d_dimensions], &d_centroids[i * d_dimensions], d_dimensions);
+        if (dist < minDist)
         {
             minDist = dist;
             assigned = i;
@@ -103,50 +100,26 @@ __global__ void shmemCalculateFlags(double *d_data, double *d_centroids, int *d_
     atomicAdd(&s_numAssigned[assigned], 1);
 
     __syncthreads();
-    if(sharedIndex == 0)
+    if (sharedIndex == 0)
     {
         for (int i = 0; i < d_numCentroids; i++)
+        {
             atomicAdd(&d_numAssigned[i], s_numAssigned[i]);
+        }
     }
 }
 
 __global__ void shmemAddNewCentroids(double *d_data, double *d_centroids, int *d_flags, int *d_numAssigned, int d_dataSize, int d_numCentroids, int d_dimensions)
 {
     const int index = blockIdx.x * blockDim.x + threadIdx.x;
-    const int sharedIndex = threadIdx.x;
 
     if(index >= d_dataSize) return;
-
-    extern __shared__ int s_centroids[];
-    int sizeOfCentroidArray = d_numCentroids * d_dimensions;
-    if(sharedIndex == 0 && sizeOfCentroidArray > 256)
-    {
-       for(int i = 0; i < sizeOfCentroidArray; i++)
-       {
-        s_centroids[i] = 0;
-       } 
-    }
-    else if (sharedIndex < sizeOfCentroidArray)
-    {
-        s_centroids[sharedIndex] = 0;
-    }
-    __syncthreads();
-
 
     int assignedCentroid = d_flags[index];
 
     for(int i = 0; i < d_dimensions; i++)
     {
-        atomicAdd(&s_centroids[assignedCentroid*d_dimensions + i], d_data[index*d_dimensions + i]);
-    }
-
-    __syncthreads();
-    if(sharedIndex == 0)
-    {
-        for(int i = 0; i < sizeOfCentroidArray; i++)
-        {
-            atomicAdd(&d_centroids[i], s_centroids[i]);
-        }
+        atomicAdd(&d_centroids[assignedCentroid*d_dimensions + i], d_data[index*d_dimensions + i]);
     }
 }
 
@@ -154,13 +127,11 @@ __global__ void shmemAverageNewCentroids(double *d_data, double *d_centroids, in
 {
     const int index = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if(index >= d_dataSize) return;
-
-    if(index < d_numCentroids)
+    if (index < d_numCentroids)
     {
-        for(int i = 0; i < d_dimensions; i++)
+        for (int i = 0; i < d_dimensions; i++)
         {
-            d_centroids[index*d_dimensions + i] /= d_numAssigned[index];
+            d_centroids[index * d_dimensions + i] /= d_numAssigned[index];
         }
     }
 }
