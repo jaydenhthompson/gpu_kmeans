@@ -73,19 +73,14 @@ int main(int argc, char **argv)
     auto centerVector = convertMatrix(centers);
 
     std::vector<float> iterations;
-    switch(opts.run_option)
+    if (opts.run_option == 0)
     {
-    case 0:
         iterations = runSequentialKMeans(input, centers, flags, opts.max_num_iter, opts.convergence_threshold);
-        break;
-    case 1:
-        iterations = runCudaBasic(dataVector, centerVector, flags, opts.dims, numRows, opts.num_cluster, opts.max_num_iter, opts.convergence_threshold);
+    }
+    else
+    {
+        iterations = runCuda(dataVector, centerVector, flags, opts.run_option, opts.dims, numRows, opts.num_cluster, opts.max_num_iter, opts.convergence_threshold);
         convertVector(centerVector, centers);
-        break;
-    case 2:
-        break;
-    case 3:
-        break;
     }
 
     std::cout << iterations.size() << ","
