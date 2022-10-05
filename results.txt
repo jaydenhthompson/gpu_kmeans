@@ -1,21 +1,29 @@
 2048
-0 -> 
-1 -> 
-2 -> 
-3 -> 
+0 -> Total Time: 180 Overhead: None
+18,10.0109 
+1 -> Total Time: 221 Overhead: 117
+18,5.76627
+2 -> Total Time: 156 Overhead: 111
+18,2.50316
+3 -> Total Time: 258 Overhead: 152
+18,5.89334
 
 16384
-0 -> 
-1 -> 
-2 -> 
-3 -> 
+0 -> Total Time: 1757 Overhead: None
+15,117.17 
+1 -> Total Time: 225 Overhead: 112
+15,7.51021
+2 -> Total Time: 238 Overhead: 130
+15,7.19829
+3 -> Total Time: 239 Overhead: 127
+15,7.4847
 
 65536
-0 -> Total Time: 8467
+0 -> Total Time: 8467 Overhead: None
 14,604.83314 
-1 -> Total Time: 897
-14,40.8568
-2 -> Total Time: 551
+1 -> Total Time: 589 Overhead: 123
+14,33.2635
+2 -> Total Time: 551 Overhead: 139
 14,29.4064
-3 -> Total Time: 709
-14,40.6992 
+3 -> Total Time: 718 Overhead: 136
+14,41.5994
