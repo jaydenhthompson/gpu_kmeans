@@ -111,6 +111,7 @@ int main(int argc, char **argv)
         {
             std::cout << " " << e;
         }
+        std::cout << std::endl;
     }
 
     return 0;

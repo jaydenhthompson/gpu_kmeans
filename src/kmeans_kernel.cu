@@ -265,13 +265,6 @@ std::vector<float> runThrust(const std::vector<double> &data, std::vector<double
     thrust::device_vector<int> d_flags(flags);
     thrust::device_vector<int> d_numAssigned(centroids.size());
 
-    thrust::device_vector<int> originalCentroidOrder(centroids.size() * dimensions);
-    thrust::sequence(originalCentroidOrder.begin(), originalCentroidOrder.end());
-
-    thrust::device_vector<int> originalDataOrder(data.size() * dimensions);
-    thrust::sequence(originalDataOrder.begin(), originalDataOrder.end());
-
-
     ////////////////////
     // Execution Loop //
     ////////////////////
@@ -322,6 +315,8 @@ std::vector<float> runThrust(const std::vector<double> &data, std::vector<double
             break;
         }
     }
+
+    thrust::copy(d_flags.begin(), d_flags.end(), flags.begin());
 
     return times;
 }
